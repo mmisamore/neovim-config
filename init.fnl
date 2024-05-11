@@ -15,28 +15,39 @@
 
 ;; Install Plugins
 (local lazy (require :lazy))
-(set vim.g.lazy_did_setup false)   ; Fix a bug where lazy thinks it is re-sourcing even though it isn't
+(set vim.g.lazy_did_setup false)                  ; Fix a bug where lazy thinks it is re-sourcing even though it isn't
 (lazy.setup [
-  :udayvir-singh/tangerine.nvim    ; Fennel compiler
-  :vim-airline/vim-airline         ; Nice status bar
-  :bluz71/vim-nightfly-guicolors   ; Modern color scheme
-  :tpope/vim-surround              ; Surround support
-  :nvim-treesitter/nvim-treesitter ; Better Syntax highlighting
-  [:nvim-telescope/telescope.nvim  ; File finding and searching
+  :udayvir-singh/tangerine.nvim                   ; Fennel compiler
+  :folke/tokyonight.nvim                          ; Modern color scheme
+  :vim-airline/vim-airline                        ; Nice status bar
+  :vim-airline/vim-airline-themes                 ; Status bar themes
+  :tpope/vim-surround                             ; Surround support
+  :junegunn/vim-easy-align                        ; Align support
+  :nvim-treesitter/nvim-treesitter                ; Better Syntax highlighting
+  [:nvim-telescope/telescope.nvim                 ; File finding and searching
     :tag "0.1.6"
     :dependencies [:nvim-lua/plenary.nvim]]
-  :williamboman/mason.nvim         ; Manage LSP installations
-  :williamboman/mason-lspconfig    ; LSP config integration
-  :neovim/nvim-lspconfig           ; Configure LSPs and autoload them
-  :hrsh7th/nvim-cmp                ; LSP-based autocompletion plugin
-  :hrsh7th/cmp-buffer              ; Complete via buffer
-  :hrsh7th/cmp-path                ; Complete via filesystem paths and folders
-  :hrsh7th/cmp-cmdline             ; Complete via vim previous commands
-  :hrsh7th/cmp-nvim-lsp            ; Complete via LSP
-  :numToStr/Comment.nvim           ; Commenting lines
-  :Olical/conjure                  ; Conjure for Clojure, Fennel, etc.
-  :PaterJason/cmp-conjure          ; Complete via Conjure
+  [:nvim-telescope/telescope-file-browser.nvim    ; File browser
+    :dependencies [:nvim-telescope/telescope.nvim ; Patch fonts: brew tap homebrew/cask-fonts
+                   :nvim-lua/plenary.nvim]]       ;              brew install font-hack-nerd-font
+  :williamboman/mason.nvim                        ; Manage LSP installations
+  :williamboman/mason-lspconfig                   ; LSP config integration
+  :neovim/nvim-lspconfig                          ; Configure LSPs and autoload them
+  :hrsh7th/nvim-cmp                               ; LSP-based autocompletion plugin
+  :hrsh7th/cmp-buffer                             ; Complete via buffer
+  :hrsh7th/cmp-path                               ; Complete via filesystem paths and folders
+  :hrsh7th/cmp-cmdline                            ; Complete via vim previous commands
+  :hrsh7th/cmp-nvim-lsp                           ; Complete via LSP
+  :numToStr/Comment.nvim                          ; Commenting lines
+  :Olical/conjure                                 ; Conjure for Clojure, Fennel, etc.
+  :PaterJason/cmp-conjure                         ; Complete via Conjure
+  :stevearc/conform.nvim                          ; Code Formatting
+
+  ; TODO: Configure Conjure for Python (including venvs)
 ])
+
+;; Alignment
+(set vim.g.easy_align_delimiters {";" { :pattern ";" }})
 
 ;; Install Syntax Plugins
 (let [treesitter-config (require :nvim-treesitter.configs)
@@ -44,6 +55,10 @@
   (ts-setup {
     :ensure_installed [:bash :json :c :dockerfile :fennel :lua :sql :terraform :yaml]
     :auto_install true}))
+
+;; Setup File Browser
+(local telescope (require :telescope))
+(telescope.load_extension :file_browser)
 
 ;; Activate Mason for automated Language Server Installation/Config
 (local mason (require :mason))
@@ -105,30 +120,46 @@
 (local cmt (require :Comment))
 (cmt.setup)
 
+;; Code Formatting Setup
+(local conform (require :conform))
+(conform.setup {
+  :formatters_by_ft {
+    :lua ["stylua"]
+    :python ["isort" "black"]}})
+
 ;; Keymaps
-(local keymap vim.keymap.set)
-(keymap :i :jk :<Esc> silent)                                      ; Smash escape
-(keymap :i :kj :<Esc> silent)
-(keymap :n "<Leader>n" ":set number!<Enter>" silent)               ; Toggle line numbers
-(keymap :v :. ":norm.<Enter>" silent)                              ; Multi-line repeats
-(keymap :n "<C-h>" "<C-w>h" silent)                                ; Window navigation
-(keymap :n "<C-j>" "<C-w>j" silent)
-(keymap :n "<C-k>" "<C-w>k" silent)
-(keymap :n "<C-l>" "<C-w>l" silent)
-(keymap :n "<Leader>t" ":tabnext<Enter>" silent)                   ; Tab navigation
-(keymap :n :j :gj silent)                                          ; Navigate via displaylines
-(keymap :n :k :gk silent)
-(keymap :n "<Leader><space>" ":set hlsearch!<Enter>" silent)       ; Toggle search highlights
-(keymap :n "<Leader>u" ":set cuc!<Enter>" silent)                  ; Toggle column highlight
-(keymap :n "<Leader>f" ":lua= vim.lsp.buf.format()<Enter>" silent) ; Format buffer using LSP
-(keymap :n "<Leader>s" ":Telescope find_files<Enter>")
-(keymap :n "<Leader>g" ":Telescope live_grep<Enter>")
+(fn keymap [mode lhs rhs] (vim.keymap.set mode lhs rhs silent))
+(keymap :i :jk :<Esc>)                                              ; Smash escape
+(keymap :i :kj :<Esc>)
+(keymap :n "<Leader>n" ":set number!<Enter>")                       ; Toggle line numbers
+(keymap :v :. ":norm.<Enter>")                                      ; Multi-line repeats
+(keymap :n "<C-h>" "<C-w>h")                                        ; Window navigation
+(keymap :n "<C-j>" "<C-w>j")
+(keymap :n "<C-k>" "<C-w>k")
+(keymap :n "<C-l>" "<C-w>l")
+(keymap :n "<Leader>t" ":tabnext<Enter>")                           ; Tab navigation
+(keymap :n :j :gj)                                                  ; Navigate via displaylines
+(keymap :n :k :gk)
+(keymap :n "<Leader><space>" ":set hlsearch!<Enter>")               ; Toggle search highlights
+(keymap :n "<Leader>u" ":set cuc!<Enter>")                          ; Toggle column highlight
+
+(keymap :n "<Leader>f" conform.format silent)         ; Format buffer using LSP
+
+; (keymap :n "<Leader>f" ":lua= vim.lsp.buf.format()<Enter>")         ; Format buffer using LSP
+
+(keymap :n "<Leader>s" ":Telescope find_files<Enter>")              ; Find files by name
+(keymap :n "<Leader>g" ":Telescope live_grep<Enter>")               ; Find files by content
+(keymap :n "<Leader>r" #(let [new-name (vim.fn.input "New name: ")] ; Rename a symbol
+                          (vim.lsp.buf.rename new-name)))
+(keymap :n "<Leader>p" ":Telescope file_browser<Enter>")            ; Open File Browser
+(keymap [:x :n] :ga "<Plug>(EasyAlign)")                            ; Align
 
 ;; Global variables
-(set vim.g.mapleader ",")                                         ; Fast leader keys
+(set vim.g.mapleader ",")                                           ; Fast leader keys
 (set vim.g.maplocalleader ",")
-(set vim.g.noswapfile true)                                       ; Don't use swap files
-(set vim.g.conjure#filetype#fennel "conjure.client.fennel.stdio") ; Don't use Aniseed for Fennel
+(set vim.g.noswapfile true)                                         ; Don't use swap files
+(set vim.g.airline_theme :deus)                                     ; Nice status bar colors
+(set vim.g.conjure#filetype#fennel "conjure.client.fennel.stdio")   ; Don't use Aniseed for Fennel
 
 ;; Options
 (macro opt [opt ...]
@@ -156,8 +187,8 @@
 (opt :omnifunc "v:lua.vim.lsp.omnifunc")                  ; Enable LSP completion
 
 ;; Commands
-(vim.cmd "colorscheme nightfly")                          ; Modern color scheme
-(vim.cmd "filetype plugin indent on")                     ; Ensure filetypes are detected
+(vim.cmd.colorscheme "tokyonight")                        ; Modern color scheme
+(vim.cmd.filetype "plugin indent on")                     ; Ensure filetypes are detected
 
 ;; Return to last cursor position when opening
 (vim.api.nvim_create_autocmd "BufReadPost" {
