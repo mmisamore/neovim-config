@@ -39,11 +39,8 @@
   :hrsh7th/cmp-cmdline                            ; Complete via vim previous commands
   :hrsh7th/cmp-nvim-lsp                           ; Complete via LSP
   :numToStr/Comment.nvim                          ; Commenting lines
-  :Olical/conjure                                 ; Conjure for Clojure, Fennel, etc.
-  :PaterJason/cmp-conjure                         ; Complete via Conjure
   :stevearc/conform.nvim                          ; Code Formatting
-
-  ; TODO: Configure Conjure for Python (including venvs)
+  :akinsho/toggleterm.nvim                        ; Terminal support
 ])
 
 ;; Alignment
@@ -53,8 +50,9 @@
 (let [treesitter-config (require :nvim-treesitter.configs)
       ts-setup          (. treesitter-config :setup)]
   (ts-setup {
-    :ensure_installed [:bash :json :c :dockerfile :fennel :lua :sql :terraform :yaml]
-    :auto_install true}))
+    :ensure_installed [:bash :c :clojure :dockerfile :fennel :json :lua :python :sql :terraform :yaml]
+    :auto_install true
+    :highlight {:enable true}}))
 
 ;; Setup File Browser
 (local telescope (require :telescope))
@@ -101,8 +99,7 @@
     {:name :cmdline}
     {:name :buffer}
     {:name :path}
-    {:name :nvim_lsp}
-    {:name :conjure}])
+    {:name :nvim_lsp}])
 })
 
 ;; Use buffer source for "/" and "?"
@@ -124,8 +121,23 @@
 (local conform (require :conform))
 (conform.setup {
   :formatters_by_ft {
+    :c ["clang-format"]
+    :clojure ["cljstyle"]
+    :fennel ["fnlfmt"]
+    :json ["jq"]
     :lua ["stylua"]
-    :python ["isort" "black"]}})
+    :python ["isort" "black"]
+    :sql ["sqlfmt"]
+    :terraform ["terraform_fmt"]
+    :yaml ["yamlfix"]}})
+
+;; Terminal setup. From a Terminal we can invoke whichever REPL we want
+(local toggleterm (require :toggleterm))
+(toggleterm.setup {
+  :size 10
+  :open_mapping "<Leader>x"
+  :direction "horizontal"
+})
 
 ;; Keymaps
 (fn keymap [mode lhs rhs] (vim.keymap.set mode lhs rhs silent))
@@ -142,24 +154,21 @@
 (keymap :n :k :gk)
 (keymap :n "<Leader><space>" ":set hlsearch!<Enter>")               ; Toggle search highlights
 (keymap :n "<Leader>u" ":set cuc!<Enter>")                          ; Toggle column highlight
-
-(keymap :n "<Leader>f" conform.format silent)         ; Format buffer using LSP
-
-; (keymap :n "<Leader>f" ":lua= vim.lsp.buf.format()<Enter>")         ; Format buffer using LSP
-
+(keymap [:n :v] "<Leader>f" (fn [] (conform.format)))               ; Format buffer or selection
 (keymap :n "<Leader>s" ":Telescope find_files<Enter>")              ; Find files by name
 (keymap :n "<Leader>g" ":Telescope live_grep<Enter>")               ; Find files by content
 (keymap :n "<Leader>r" #(let [new-name (vim.fn.input "New name: ")] ; Rename a symbol
                           (vim.lsp.buf.rename new-name)))
 (keymap :n "<Leader>p" ":Telescope file_browser<Enter>")            ; Open File Browser
 (keymap [:x :n] :ga "<Plug>(EasyAlign)")                            ; Align
+(keymap :v "<Leader>e" ":ToggleTermSendVisualLines<Enter>")         ; Send Selection to terminal
+(keymap :t "<Esc>" "<C-\\><C-n>")                                   ; Escape from Terminal insert
 
 ;; Global variables
 (set vim.g.mapleader ",")                                           ; Fast leader keys
 (set vim.g.maplocalleader ",")
 (set vim.g.noswapfile true)                                         ; Don't use swap files
 (set vim.g.airline_theme :deus)                                     ; Nice status bar colors
-(set vim.g.conjure#filetype#fennel "conjure.client.fennel.stdio")   ; Don't use Aniseed for Fennel
 
 ;; Options
 (macro opt [opt ...]
@@ -187,7 +196,7 @@
 (opt :omnifunc "v:lua.vim.lsp.omnifunc")                  ; Enable LSP completion
 
 ;; Commands
-(vim.cmd.colorscheme "tokyonight")                        ; Modern color scheme
+(vim.cmd.colorscheme "tokyonight-night")                  ; Modern color scheme
 (vim.cmd.filetype "plugin indent on")                     ; Ensure filetypes are detected
 
 ;; Return to last cursor position when opening
