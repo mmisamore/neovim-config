@@ -17,34 +17,50 @@
 (local lazy (require :lazy))
 (set vim.g.lazy_did_setup false)                  ; Fix a bug where lazy thinks it is re-sourcing even though it isn't
 (lazy.setup [
-  :udayvir-singh/tangerine.nvim                   ; Fennel compiler
-  :folke/tokyonight.nvim                          ; Modern color scheme
-  :vim-airline/vim-airline                        ; Nice status bar
-  :vim-airline/vim-airline-themes                 ; Status bar themes
-  :tpope/vim-surround                             ; Surround support
-  :junegunn/vim-easy-align                        ; Align support
-  :nvim-treesitter/nvim-treesitter                ; Better Syntax highlighting
+  [:udayvir-singh/tangerine.nvim                  ; Fennel compiler
+    :tag "v2.8"]
+  [:folke/tokyonight.nvim                         ; Modern color scheme
+    :tag "v3.0.1"]
+  [:vim-airline/vim-airline
+    :commit "16c1638"]                            ; Nice status bar
+  [:vim-airline/vim-airline-themes                ; Status bar themes
+    :commit "a9aa25c"]
+  [:tpope/vim-surround
+    :commit "3d188ed"]                            ; Surround support
+  [:junegunn/vim-easy-align                       ; Align support
+    :commit "9815a55"]
+  [:nvim-treesitter/nvim-treesitter               ; Better Syntax highlighting
+    :tag "v0.9.2"]
   [:nvim-telescope/telescope.nvim                 ; File finding and searching
     :tag "0.1.6"
     :dependencies [:nvim-lua/plenary.nvim]]
   [:nvim-telescope/telescope-file-browser.nvim    ; File browser
+    :commit "4d5fd21"
     :dependencies [:nvim-telescope/telescope.nvim ; Patch fonts: brew tap homebrew/cask-fonts
                    :nvim-lua/plenary.nvim]]       ;              brew install font-hack-nerd-font
-  :williamboman/mason.nvim                        ; Manage LSP installations
-  :williamboman/mason-lspconfig                   ; LSP config integration
-  :neovim/nvim-lspconfig                          ; Configure LSPs and autoload them
-  :hrsh7th/nvim-cmp                               ; LSP-based autocompletion plugin
-  :hrsh7th/cmp-buffer                             ; Complete via buffer
-  :hrsh7th/cmp-path                               ; Complete via filesystem paths and folders
-  :hrsh7th/cmp-cmdline                            ; Complete via vim previous commands
-  :hrsh7th/cmp-nvim-lsp                           ; Complete via LSP
-  :numToStr/Comment.nvim                          ; Commenting lines
-  :stevearc/conform.nvim                          ; Code Formatting
-  :akinsho/toggleterm.nvim                        ; Terminal support
+  [:williamboman/mason.nvim                       ; Manage LSP installations
+    :commit "49ff59a"]
+  [:williamboman/mason-lspconfig :tag "v1.29.0"]  ; LSP config integration
+  [:neovim/nvim-lspconfig                         ; Configure LSPs and autoload them
+    :commit "9bda20f"]
+  [:hrsh7th/nvim-cmp                              ; LSP-based autocompletion plugin
+    :commit "5260e5e"]
+  [:hrsh7th/cmp-buffer                            ; Complete via buffer
+    :commit "3022dbc"]
+  [:hrsh7th/cmp-path                              ; Complete via filesystem paths and folders
+    :commit "91ff86c"]
+  [:hrsh7th/cmp-cmdline                           ; Complete via vim previous commands
+    :commit "d250c63"]
+  [:hrsh7th/cmp-nvim-lsp                          ; Complete via LSP
+    :commit "39e2eda"]
+  [:numToStr/Comment.nvim                         ; Commenting lines
+    :commit "0236521"]
+  [:stevearc/conform.nvim                         ; Code Formatting
+    :commit "00f9d91"]
 ])
 
-;; Alignment
-(set vim.g.easy_align_delimiters {";" { :pattern ";" }})
+;; Easy Align
+(set vim.g.easy_align_delimiters { ";" { :pattern ";" } })
 
 ;; Install Syntax Plugins
 (let [treesitter-config (require :nvim-treesitter.configs)
@@ -55,8 +71,7 @@
     :highlight {:enable true}}))
 
 ;; Setup File Browser
-(local telescope (require :telescope))
-(telescope.load_extension :file_browser)
+(let [telescope (require :telescope)] (telescope.load_extension :file_browser))
 
 ;; Activate Mason for automated Language Server Installation/Config
 (local mason (require :mason))
@@ -84,7 +99,8 @@
   [:bashls]
     #(let [server   (. lspconfig :bashls)
            setup-fn (. server :setup)]
-      (setup-fn {:root_dir vim.loop.cwd :filetypes [:sh]
+      (setup-fn {:filetypes [:sh]
+                 :root_dir vim.loop.cwd
                  :capabilities cmp-nvim-capabilities}))])
 
 ;; Setup auto-completion
@@ -114,8 +130,7 @@
   :matching {:disallow_symbol_nonprefix_matching false}})
 
 ;; Enable Commenting support
-(local cmt (require :Comment))
-(cmt.setup)
+(let [cmt (require :Comment)] (cmt.setup))
 
 ;; Code Formatting Setup
 (local conform (require :conform))
@@ -131,14 +146,6 @@
     :terraform ["terraform_fmt"]
     :yaml ["yamlfix"]}})
 
-;; Terminal setup. From a Terminal we can invoke whichever REPL we want
-(local toggleterm (require :toggleterm))
-(toggleterm.setup {
-  :size 10
-  :open_mapping "<Leader>x"
-  :direction "horizontal"
-})
-
 ;; Keymaps
 (fn keymap [mode lhs rhs] (vim.keymap.set mode lhs rhs silent))
 (keymap :i :jk :<Esc>)                                              ; Smash escape
@@ -149,20 +156,55 @@
 (keymap :n "<C-j>" "<C-w>j")
 (keymap :n "<C-k>" "<C-w>k")
 (keymap :n "<C-l>" "<C-w>l")
+(keymap :t "<C-h>" "<C-\\><C-N><C-w>h")                             ; Navigate away from Terminal windows
+(keymap :t "<C-j>" "<C-\\><C-N><C-w>j")
+(keymap :t "<C-k>" "<C-\\><C-N><C-w>k")
+(keymap :t "<C-l>" "<C-\\><C-N><C-w>l")
+(keymap :t "<Esc>" "<C-\\><C-N>")                                   ; Escape from Terminal insert
 (keymap :n "<Leader>t" ":tabnext<Enter>")                           ; Tab navigation
 (keymap :n :j :gj)                                                  ; Navigate via displaylines
 (keymap :n :k :gk)
 (keymap :n "<Leader><space>" ":set hlsearch!<Enter>")               ; Toggle search highlights
-(keymap :n "<Leader>u" ":set cuc!<Enter>")                          ; Toggle column highlight
 (keymap [:n :v] "<Leader>f" (fn [] (conform.format)))               ; Format buffer or selection
-(keymap :n "<Leader>s" ":Telescope find_files<Enter>")              ; Find files by name
-(keymap :n "<Leader>g" ":Telescope live_grep<Enter>")               ; Find files by content
+(keymap :n "<Leader>sf" ":Telescope find_files<Enter>")             ; Find files by name
+(keymap :n "<Leader>sg" ":Telescope live_grep<Enter>")              ; Find files by content
 (keymap :n "<Leader>r" #(let [new-name (vim.fn.input "New name: ")] ; Rename a symbol
                           (vim.lsp.buf.rename new-name)))
+(keymap :n :gd #(vim.lsp.buf.definition))                           ; Go to Definition
 (keymap :n "<Leader>p" ":Telescope file_browser<Enter>")            ; Open File Browser
 (keymap [:x :n] :ga "<Plug>(EasyAlign)")                            ; Align
-(keymap :v "<Leader>e" ":ToggleTermSendVisualLines<Enter>")         ; Send Selection to terminal
-(keymap :t "<Esc>" "<C-\\><C-n>")                                   ; Escape from Terminal insert
+
+
+
+(fn term-bufs []
+  "List of terminal buffers"
+  (icollect [_ buf (ipairs (vim.api.nvim_list_bufs))]
+    (when (= 1 (string.find (vim.api.nvim_buf_get_name buf) "term://"))
+      buf)))
+
+(fn first-term-buf []
+  "First terminal buffer (if any)"
+  (. (term-bufs) 1))
+
+(fn open-terminal []
+  "Find terminal buffer (if any), create if necessary, and open window"
+  (vim.cmd "below split")
+  (let [term-buf (first-term-buf)
+        bufh     (if (not= nil term-buf)
+                   term-buf
+                   (vim.api.nvim_create_buf :true :false))
+        winh     (vim.api.nvim_get_current_win)]
+    (vim.api.nvim_win_set_buf winh bufh)
+    (vim.api.nvim_win_set_height winh 10)
+    (vim.api.nvim_set_current_win winh)
+    (if (= nil term-buf)
+        (do (vim.cmd "terminal") winh)
+        winh)))
+
+; (fn term-chans []
+;   "List of terminal channels"
+
+
 
 ;; Global variables
 (set vim.g.mapleader ",")                                           ; Fast leader keys
@@ -187,7 +229,7 @@
 (opt :expandtab true)                                     ; Tabs and spacing
 (opt :tabstop 2)
 (opt :shiftwidth 2)
-(opt :colorcolumn 120)
+(opt :colorcolumn "120")
 (opt :textwidth 120)
 (opt :scrolloff 8)                                        ; Scroll offset
 (opt :mouse :a)                                           ; Enable mouse scrolling
