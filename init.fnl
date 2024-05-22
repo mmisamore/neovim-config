@@ -146,16 +146,87 @@
     :terraform ["terraform_fmt"]
     :yaml ["yamlfix"]}})
 
+
+;; Terminal support
+
+(fn term-bufs []
+  "List of terminal buffers"
+  (icollect [_ buf (ipairs (vim.api.nvim_list_bufs))]
+    (when (= 1 (string.find (vim.api.nvim_buf_get_name buf) "term://"))
+      buf)))
+
+(fn first-term-buf [] (. (term-bufs) 1))
+
+(fn open-terminal []
+  "Find first terminal buffer (if any), create if necessary, and open window"
+  (vim.cmd "below split")
+  (let [term-buf (first-term-buf)
+        bufh     (if (not= nil term-buf) term-buf
+                   (vim.api.nvim_create_buf :true :false))
+        winh     (vim.api.nvim_get_current_win)]
+    (vim.api.nvim_win_set_buf winh bufh)
+    (vim.api.nvim_win_set_height winh 10)
+    (vim.api.nvim_set_current_win winh)
+    (if (= nil term-buf)
+        (do (vim.cmd "terminal") {:buf bufh :win winh})
+        {:buf bufh :win winh})))
+
+(fn term-chans []
+  "List of terminal channels"
+  (let [term-buf   (first-term-buf)
+        chans      (vim.api.nvim_list_chans)]
+    (icollect [_ c (ipairs chans)]
+      (when (= term-buf (. c :buffer))
+        (. c :id)))))
+
+(fn first-term-chan [] (. (term-chans) 1))
+
+(fn term-window-id []
+  "Id of the window containing the terminal buffer"
+  (let [term-buf (first-term-buf)]
+    (when term-buf
+      (let [id (vim.fn.bufwinid term-buf)]
+        (if (= -1 id) nil id)))))
+
+(fn toggle-terminal []
+  "Open terminal window (with existing buffer if applicable) if not open,
+   otherwise hide the terminal window, keeping the buffer"
+  (if (= nil (term-window-id))
+    (open-terminal)
+    (vim.api.nvim_win_hide (term-window-id))))
+
+(fn send-line-to-term [s]
+  "Send a string to the terminal"
+  (let [chan (first-term-chan)]
+    (vim.api.nvim_chan_send chan s)))
+
+(fn selected-lines []
+  "List of visually selected lines"
+  (let [first-line (. (vim.fn.getpos "'<") 2)
+        last-line  (. (vim.fn.getpos "'>") 2)]
+    (vim.fn.getline first-line last-line)))
+
+(fn send-selected-lines-to-term []
+  "Prepend a space to each empty visually selected line and send it to the terminal"
+  (let [lines     (selected-lines)
+        pre-lines (icollect [_ l (ipairs lines)]
+                    (if (= "" l)
+                        (.. " " l "\n")
+                        (.. l "\n")))]
+   (each [_ p (ipairs pre-lines)] (send-line-to-term p)))
+   (send-line-to-term "\n"))
+
+
 ;; Keymaps
 (fn keymap [mode lhs rhs] (vim.keymap.set mode lhs rhs silent))
 (keymap :i :jk :<Esc>)                                              ; Smash escape
 (keymap :i :kj :<Esc>)
 (keymap :n "<Leader>n" ":set number!<Enter>")                       ; Toggle line numbers
 (keymap :v :. ":norm.<Enter>")                                      ; Multi-line repeats
-(keymap :n "<C-h>" "<C-w>h")                                        ; Window navigation
-(keymap :n "<C-j>" "<C-w>j")
-(keymap :n "<C-k>" "<C-w>k")
-(keymap :n "<C-l>" "<C-w>l")
+(keymap [:n :v] "<C-h>" "<C-w>h")                                        ; Window navigation
+(keymap [:n :v] "<C-j>" "<C-w>j")
+(keymap [:n :v] "<C-k>" "<C-w>k")
+(keymap [:n :v] "<C-l>" "<C-w>l")
 (keymap :t "<C-h>" "<C-\\><C-N><C-w>h")                             ; Navigate away from Terminal windows
 (keymap :t "<C-j>" "<C-\\><C-N><C-w>j")
 (keymap :t "<C-k>" "<C-\\><C-N><C-w>k")
@@ -173,38 +244,8 @@
 (keymap :n :gd #(vim.lsp.buf.definition))                           ; Go to Definition
 (keymap :n "<Leader>p" ":Telescope file_browser<Enter>")            ; Open File Browser
 (keymap [:x :n] :ga "<Plug>(EasyAlign)")                            ; Align
-
-
-
-(fn term-bufs []
-  "List of terminal buffers"
-  (icollect [_ buf (ipairs (vim.api.nvim_list_bufs))]
-    (when (= 1 (string.find (vim.api.nvim_buf_get_name buf) "term://"))
-      buf)))
-
-(fn first-term-buf []
-  "First terminal buffer (if any)"
-  (. (term-bufs) 1))
-
-(fn open-terminal []
-  "Find terminal buffer (if any), create if necessary, and open window"
-  (vim.cmd "below split")
-  (let [term-buf (first-term-buf)
-        bufh     (if (not= nil term-buf)
-                   term-buf
-                   (vim.api.nvim_create_buf :true :false))
-        winh     (vim.api.nvim_get_current_win)]
-    (vim.api.nvim_win_set_buf winh bufh)
-    (vim.api.nvim_win_set_height winh 10)
-    (vim.api.nvim_set_current_win winh)
-    (if (= nil term-buf)
-        (do (vim.cmd "terminal") winh)
-        winh)))
-
-; (fn term-chans []
-;   "List of terminal channels"
-
-
+(keymap :n "<Leader>x" toggle-terminal)
+(keymap :v "<Leader>e" send-selected-lines-to-term)
 
 ;; Global variables
 (set vim.g.mapleader ",")                                           ; Fast leader keys
