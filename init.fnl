@@ -107,6 +107,7 @@
 (local cmp (require :cmp))
 (cmp.setup {
   :snippet {:expand (fn [args] (vim.snippet.expand args.body))}
+  :mapping {"<Tab>" (cmp.mapping.confirm {:select true})}
   :window {
     :completion (cmp.config.window.bordered)
     :documentation (cmp.config.window.bordered)
@@ -148,7 +149,6 @@
 
 
 ;; Terminal support
-
 (fn term-bufs []
   "List of terminal buffers"
   (icollect [_ buf (ipairs (vim.api.nvim_list_bufs))]
@@ -167,9 +167,8 @@
     (vim.api.nvim_win_set_buf winh bufh)
     (vim.api.nvim_win_set_height winh 10)
     (vim.api.nvim_set_current_win winh)
-    (if (= nil term-buf)
-        (do (vim.cmd "terminal") {:buf bufh :win winh})
-        {:buf bufh :win winh})))
+    (when (= nil term-buf) (vim.cmd "terminal"))
+    {:buf bufh :win winh}))
 
 (fn term-chans []
   "List of terminal channels"
@@ -202,20 +201,22 @@
 
 (fn selected-lines []
   "List of visually selected lines"
-  (let [first-line (. (vim.fn.getpos "'<") 2)
-        last-line  (. (vim.fn.getpos "'>") 2)]
+  (let [first-line (. (vim.fn.getpos "v") 2)
+        last-line  (. (vim.fn.getpos ".") 2)]
     (vim.fn.getline first-line last-line)))
 
-(fn send-selected-lines-to-term []
-  "Prepend a space to each empty visually selected line and send it to the terminal"
-  (let [lines     (selected-lines)
-        pre-lines (icollect [_ l (ipairs lines)]
-                    (if (= "" l)
-                        (.. " " l "\n")
-                        (.. l "\n")))]
-   (each [_ p (ipairs pre-lines)] (send-line-to-term p)))
-   (send-line-to-term "\n"))
+(fn escape-visual-mode []
+  "Escape visual mode"
+  (let [esc (vim.api.nvim_replace_termcodes "<Esc>" :true :false :true)]
+    (vim.api.nvim_feedkeys esc :n :true)))
 
+(fn send-selected-lines-to-term []
+  "Suffix each current visually selected line with newline and send it to the terminal"
+  (escape-visual-mode)
+  (let [lines   (selected-lines)
+        n-lines (icollect [_ l (ipairs lines)] (.. l "\n"))]
+   (each [_ p (ipairs n-lines)] (send-line-to-term p)))
+  (send-line-to-term "\n"))
 
 ;; Keymaps
 (fn keymap [mode lhs rhs] (vim.keymap.set mode lhs rhs silent))
@@ -283,7 +284,7 @@
 (vim.cmd.filetype "plugin indent on")                     ; Ensure filetypes are detected
 
 ;; Return to last cursor position when opening
-(vim.api.nvim_create_autocmd "BufReadPost" {
+(vim.api.nvim_create_autocmd :BufReadPost {
   :pattern ["*"]
   :callback (fn []
     (if (and (> (vim.fn.line "'\"") 1)
@@ -291,6 +292,13 @@
       (vim.api.nvim_exec "normal! g'\"" false)))})
 
 ;; Automatically strip trailing whitespace on save
-(vim.api.nvim_create_autocmd "BufWritePre" {
+(vim.api.nvim_create_autocmd :BufWritePre {
   :pattern ["*"]
   :command "exe 'norm m`' | %s/\\s\\+$//e | norm g``"})
+
+;; Proper spacing for Python files
+(vim.api.nvim_create_autocmd :FileType {
+  :pattern ["python"]
+  :callback (fn []
+              (set vim.o.tabstop 2)
+              (set vim.o.shiftwidth 2))})
