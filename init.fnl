@@ -231,19 +231,22 @@
 (keymap :t "<C-j>" "<C-\\><C-N><C-w>j")
 (keymap :t "<C-k>" "<C-\\><C-N><C-w>k")
 (keymap :t "<C-l>" "<C-\\><C-N><C-w>l")
-(keymap :t "<Esc>" "<C-\\><C-N>")                                   ; Escape from Terminal insert
-(keymap :n "<Leader>t" ":tabnext<Enter>")                           ; Tab navigation
-(keymap :n :j :gj)                                                  ; Navigate via displaylines
+(keymap :t "<Esc>" "<C-\\><C-N>")                                    ; Escape from Terminal insert
+(keymap :n "<Leader>t" ":tabnext<Enter>")                            ; Tab navigation
+(keymap :n :j :gj)                                                   ; Navigate via displaylines
 (keymap :n :k :gk)
-(keymap :n "<Leader><space>" ":set hlsearch!<Enter>")               ; Toggle search highlights
-(keymap [:n :v] "<Leader>f" (fn [] (conform.format)))               ; Format buffer or selection
-(keymap :n "<Leader>sf" ":Telescope find_files<Enter>")             ; Find files by name
-(keymap :n "<Leader>sg" ":Telescope live_grep<Enter>")              ; Find files by content
-(keymap :n "<Leader>sp" ":Telescope file_browser<Enter>")           ; Open File Browser
-(keymap :n "<Leader>r" #(let [new-name (vim.fn.input "New name: ")] ; Rename a symbol
-                          (vim.lsp.buf.rename new-name)))
-(keymap :n :gd #(vim.lsp.buf.definition))                           ; Go to Definition
-(keymap [:x :n] :ga "<Plug>(EasyAlign)")                            ; Align
+(keymap :n "<Leader><space>" ":set hlsearch!<Enter>")                ; Toggle search highlights
+(keymap [:n :v] "<Leader>f" (fn [] (conform.format)))                ; Format buffer or selection
+(keymap :n "K" vim.lsp.buf.hover)
+(keymap :n "<Leader>sf" ":Telescope find_files<Enter>")              ; Find files by name
+(keymap :n "<Leader>sg" ":Telescope live_grep<Enter>")               ; Find files by content
+(keymap :n "<Leader>sp" ":Telescope file_browser<Enter>")            ; Open File Browser
+(keymap :n "<Leader>sd" ":Telescope diagnostics<Enter>")
+(keymap :n "<Leader>rs" #(let [new-name (vim.fn.input "New name: ")] ; Rename a symbol
+                           (vim.lsp.buf.rename new-name)))
+(keymap :n :gd vim.lsp.buf.definition)                           ; Go to Definition
+(keymap :n :gr vim.lsp.buf.references)                           ; Get references to symbol
+(keymap [:x :n] "<Leader>a" "<Plug>(EasyAlign)")                            ; Align
 (keymap :n "<Leader>x" toggle-terminal)                             ; Toggle terminal window
 (keymap :v "<Leader>e" send-selected-lines-to-term)                 ; Send visual selection to terminal
 
