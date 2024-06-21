@@ -185,37 +185,35 @@
       (let [id (vim.fn.bufwinid term-buf)]
         (if (= -1 id) nil id)))))
 
-(fn toggle-terminal []
+(fn toggle-term []
   "Open terminal window (with existing buffer if applicable) if not open,
    otherwise hide the terminal window, keeping the buffer"
   (if (= nil (term-window-id))
     (open-terminal)
     (vim.api.nvim_win_hide (term-window-id))))
 
-(fn send-line-to-term [s]
+(fn str-to-term [s]
   "Send a string to the terminal"
   (let [chan (first-term-chan)]
     (vim.api.nvim_chan_send chan s)))
 
-(fn selected-lines []
-  "List of visually selected lines"
-  (let [first-line (. (vim.fn.getpos "v") 2)
-        last-line  (. (vim.fn.getpos ".") 2)]
-    (vim.fn.getline first-line last-line)))
+(fn selected-region []
+  "Get the selected region as a string, possibly with embedded newlines.
+   Clobbers the \" register"
+  (vim.cmd "noau norm! y:echo")
+  (vim.fn.getreg "\""))
 
-(fn escape-visual-mode []
-  "Escape visual mode"
-  (let [esc (vim.api.nvim_replace_termcodes "<Esc>" :true :false :true)]
-    (vim.api.nvim_feedkeys esc :n :true)))
+(fn str-to-repl []
+  "Send selected string (possibly with embedded newlines) to REPL,
+   including a trailing newline to force REPL evaluation if necessary.
+   Handles janky Python behaviour by assuming ipython and leveraging %paste"
+  (let [selection (selected-region)
+        filetype  vim.bo.filetype
+        suffix    (if (= (string.sub selection -1) "\n") "" "\n")]
+    (case filetype
+          :python (str-to-term "%paste\n")
+          _       (str-to-term (.. selection suffix)))))
 
-(fn send-selected-lines-to-term []
-  "Suffix each current visually selected line with newline and send it to
-   the terminal"
-  (escape-visual-mode)
-  (let [lines   (selected-lines)
-        n-lines (icollect [_ l (ipairs lines)] (.. l "\n"))]
-   (each [_ p (ipairs n-lines)] (send-line-to-term p)))
-  (send-line-to-term "\n"))
 
 ;; Keymaps
 (fn keymap [mode lhs rhs] (vim.keymap.set mode lhs rhs silent))
@@ -244,11 +242,11 @@
 (keymap :n "<Leader>sd" ":Telescope diagnostics<Enter>")
 (keymap :n "<Leader>rs" #(let [new-name (vim.fn.input "New name: ")] ; Rename a symbol
                            (vim.lsp.buf.rename new-name)))
-(keymap :n :gd vim.lsp.buf.definition)                           ; Go to Definition
-(keymap :n :gr vim.lsp.buf.references)                           ; Get references to symbol
-(keymap [:x :n] "<Leader>a" "<Plug>(EasyAlign)")                            ; Align
-(keymap :n "<Leader>x" toggle-terminal)                             ; Toggle terminal window
-(keymap :v "<Leader>e" send-selected-lines-to-term)                 ; Send visual selection to terminal
+(keymap :n :gd vim.lsp.buf.definition)                               ; Go to Definition
+(keymap :n :gr vim.lsp.buf.references)                               ; Get references to symbol
+(keymap [:x :n] "<Leader>a" "<Plug>(EasyAlign)")                     ; Align
+(keymap :n "<Leader>x" toggle-term)                                  ; Toggle terminal window
+(keymap :v "<Leader>e" str-to-repl)                                  ; Send selected region to terminal
 
 ;; Global variables
 (set vim.g.mapleader ",")                                           ; Fast leader keys
