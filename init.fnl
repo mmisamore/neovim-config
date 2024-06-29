@@ -251,12 +251,12 @@
 ;; Global variables
 (set vim.g.mapleader ",")                                           ; Fast leader keys
 (set vim.g.maplocalleader ",")
-(set vim.g.noswapfile true)                                         ; Don't use swap files
 (set vim.g.airline_theme :deus)                                     ; Nice status bar colors
 
 ;; Options
 (macro opt [opt ...]
   `(set ,(sym (.. :vim.o :. opt)) ,...))
+(opt :swapfile false)                                     ; Disable swapfile
 (opt :backspace (table.concat [:indent :eol :start] ",")) ; Sane backspacing rules
 (opt :termguicolors true)                                 ; Enable 24-bit RBG terminal colors
 (opt :clipboard :unnamed)                                 ; Use Mac clipboard
