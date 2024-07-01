@@ -83,7 +83,7 @@
 (mason.setup)
 (mason-lspconfig.setup
   {:ensure_installed [:bashls :clojure_lsp :jsonls :clangd :dockerls :fennel_ls
-                      :lua_ls :sqlls :terraformls :yamlls]
+                      :pylsp :lua_ls :sqlls :terraformls :yamlls]
    :automatic_installation true})
 
 ;; Grab cmp-nvim capabilities to use for LSP configuration
@@ -97,7 +97,6 @@
            setup-fn (. server :setup)]
        (setup-fn {:root_dir vim.loop.cwd
                   :capabilities cmp-nvim-capabilities})))
-
    ; handlers with customized setups go here
    [:bashls]
    #(let [server   (. lspconfig :bashls)
@@ -147,54 +146,62 @@
                       :yaml ["yamlfix"]}})
 
 ;; Terminal support
-(fn term-bufs []
-  "List of terminal buffers"
-  (icollect [_ buf (ipairs (vim.api.nvim_list_bufs))]
-    (when (= 1 (string.find (vim.api.nvim_buf_get_name buf) "term://"))
-      buf)))
+(fn term-buf-name [...]
+  "Get terminal buffer name for the [current] tabpage"
+  (let [[tabh]  [...]
+        tabpage (or tabh (vim.api.nvim_get_current_tabpage))]
+    (.. "terminal-" tabpage)))
 
-(fn first-term-buf [] (. (term-bufs) 1))
+(fn substr? [s1 s2]
+  "Test if s1 is a substring of s2"
+  (if (string.find s2 s1 1 true) true false))
+
+(fn term-buf [...]
+  "Get terminal buffer for the [current] tabpage"
+  (let [bufs      (vim.api.nvim_list_bufs)
+        term-name (term-buf-name ...)]
+    (. (icollect [_ b (ipairs bufs)]
+         (when (substr? term-name (vim.api.nvim_buf_get_name b)) b)) 1)))
 
 (fn open-terminal []
-  "Find first terminal buffer (if any), create if necessary, and open window"
+  "Find terminal buffer for current tabpage (if any), create if necessary,
+   and open window"
   (vim.cmd "below split")
-  (let [term-buf (first-term-buf)
-        bufh     (if (not= nil term-buf) term-buf
-                   (vim.api.nvim_create_buf :true :false))
-        winh     (vim.api.nvim_get_current_win)]
+  (let [buf  (term-buf)
+        bufh (if buf buf (vim.api.nvim_create_buf :true :false))
+        winh (vim.api.nvim_get_current_win)]
     (vim.api.nvim_win_set_buf winh bufh)
     (vim.api.nvim_win_set_height winh 10)
-    (vim.api.nvim_set_current_win winh)
-    (when (= nil term-buf) (vim.cmd "terminal"))
+    (when (= nil buf)
+      (vim.cmd "terminal")
+      (vim.api.nvim_buf_set_name bufh (term-buf-name)))
     {:buf bufh :win winh}))
 
-(fn term-chans []
-  "List of terminal channels"
-  (let [term-buf   (first-term-buf)
-        chans      (vim.api.nvim_list_chans)]
-    (icollect [_ c (ipairs chans)]
-      (when (= term-buf (. c :buffer))
-        (. c :id)))))
+(fn term-chan [...]
+  "Terminal channel for terminal buffer for [current] tabpage"
+  (let [buf   (term-buf ...)
+        chans (vim.api.nvim_list_chans)]
+    (when buf
+      (. (icollect [_ c (ipairs chans)]
+           (when (= buf (. c :buffer)) (. c :id))) 1))))
 
-(fn first-term-chan [] (. (term-chans) 1))
-
-(fn term-window-id []
-  "Id of the window containing the terminal buffer"
-  (let [term-buf (first-term-buf)]
-    (when term-buf
-      (let [id (vim.fn.bufwinid term-buf)]
+(fn term-win-id [...]
+  "Id of the window in [current] tabpage containing the terminal buffer"
+  (let [buf (term-buf ...)]
+    (when buf
+      (let [id (vim.fn.bufwinid buf)]
         (if (= -1 id) nil id)))))
 
 (fn toggle-term []
-  "Open terminal window (with existing buffer if applicable) if not open,
-   otherwise hide the terminal window, keeping the buffer"
-  (if (= nil (term-window-id))
+  "Open terminal window in current tabpage (with existing buffer if applicable)
+  if not open, otherwise hide the terminal window, keeping the buffer"
+  (if (= nil (term-win-id))
     (open-terminal)
-    (vim.api.nvim_win_hide (term-window-id))))
+    (vim.api.nvim_win_hide (term-win-id))))
 
 (fn str-to-term [s]
-  "Send a string to the terminal"
-  (let [chan (first-term-chan)]
+  "Send a string to the terminal in the current tabpage"
+  (let [chan (term-chan)]
     (vim.api.nvim_chan_send chan s)))
 
 (fn selected-region []
