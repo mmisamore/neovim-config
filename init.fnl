@@ -121,7 +121,7 @@
 ;; Use buffer source for "/" and "?"
 (cmp.setup.cmdline ["/" "?"]
   {:mapping (cmp.mapping.preset.cmdline)
-   :sources [{ :name :buffer}]})
+   :sources [{:name :buffer}]})
 
 ;; Use cmdline and path sources for ":"
 (cmp.setup.cmdline ":"
@@ -137,11 +137,8 @@
 (conform.setup
   {:formatters_by_ft {:c ["clang-format"]
                       :clojure ["cljstyle"]
-                      :fennel ["fnlfmt"]
                       :json ["jq"]
-                      :lua ["stylua"]
-                      :python ["isort" "black"]
-                      :sql ["sqlfmt"]
+                      :python ["isort" "autopep8"]
                       :terraform ["terraform_fmt"]
                       :yaml ["yamlfix"]}})
 
@@ -174,6 +171,7 @@
     (vim.api.nvim_win_set_height winh 10)
     (when (= nil buf)
       (vim.cmd "terminal")
+      (vim.cmd "norm G")
       (vim.api.nvim_buf_set_name bufh (term-buf-name)))
     {:buf bufh :win winh}))
 
@@ -207,7 +205,7 @@
 (fn selected-region []
   "Get the selected region as a string, possibly with embedded newlines.
    Clobbers the \" register"
-  (vim.cmd "noau norm! y:echo")
+  (vim.cmd "noau norm! y`]:echo")
   (vim.fn.getreg "\""))
 
 (fn str-to-repl []
